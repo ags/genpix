@@ -1,0 +1,5 @@
+.*.swp
+genpix
+*.o
+*.png
+*.jpg
