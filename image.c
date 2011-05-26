@@ -33,9 +33,9 @@ t_image* image_from_tex(int image_tex) {
     img->pix[x] = s_malloc(sizeof(t_rgb) * img->height);
     for(int y = 0; y < img->height; y++) {
       int offset = ((img->width * y) + x) * 4;
-      img->pix[x][y].r = buffer[offset] / 255.0;
-      img->pix[x][y].g = buffer[offset+1] / 255.0;
-      img->pix[x][y].b = buffer[offset+2] / 255.0;
+      img->pix[x][y].r = buffer[offset];
+      img->pix[x][y].g = buffer[offset+1];
+      img->pix[x][y].b = buffer[offset+2];
       /*
       printf("pixel at (%d,%d) (%d,%d,%d) (%.3f,%.3f,%.3ff)\n", x, y, 
         (int)img->pix[x][y].r*255, (int)img->pix[x][y].g*255, 

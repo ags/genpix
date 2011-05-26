@@ -5,6 +5,10 @@
 #include "image.h"
 #include "util.h"
 
-float image_fitness(t_image* img);
+int image_fitness(t_image* img);
+
+void flip_random_bit(int n);
+
+void one_point_crossover(int p_a, int p_b, int* children);
 
 #endif

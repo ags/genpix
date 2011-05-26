@@ -5,7 +5,7 @@
 #include "texture.h"
 
 typedef struct {
-  float r, g, b;
+  int r, g, b;
 } t_rgb;
 
 typedef struct {

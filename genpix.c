@@ -5,19 +5,22 @@
 #define POP_SELECT_FACTOR  0.33
 
 // globals
-t_image* base_image;
-t_image* best_image;
-t_image** population;
 const int POP_SELECT = POP_SIZE * POP_SELECT_FACTOR;
 
-float image_fitness(t_image* img) {
-  float fitness = 0;
+t_image* base_image;
+t_image* best_image;
+t_image* population[POP_SIZE];
+float fitness[POP_SIZE];
+
+int done = 0;
+
+int image_fitness(t_image* img) {
+  int fitness = 0;
   for(int x = 0; x < img->width; x++) {
     for(int y = 0; y < img->height; y++) {
-      float delta_r = base_image->pix[x][y].r - img->pix[x][y].r;
-      float delta_g = base_image->pix[x][y].g - img->pix[x][y].g;
-      float delta_b = base_image->pix[x][y].b - img->pix[x][y].b;
-
+      int delta_r = base_image->pix[x][y].r - img->pix[x][y].r;
+      int delta_g = base_image->pix[x][y].g - img->pix[x][y].g;
+      int delta_b = base_image->pix[x][y].b - img->pix[x][y].b;
       fitness += delta_r * delta_r + delta_g * delta_g + delta_b * delta_b;
     }
   }
@@ -27,8 +30,8 @@ float image_fitness(t_image* img) {
 int image_fitness_cmp(const void* a, const void* b) {
   t_image* i_a = *(t_image**)a;
   t_image* i_b = *(t_image**)b;
-  float f_a = image_fitness(i_a);
-  float f_b = image_fitness(i_b); 
+  int f_a = image_fitness(i_a);
+  int f_b = image_fitness(i_b); 
   return (f_a > f_b) - (f_a < f_b);
 }
 
@@ -45,11 +48,40 @@ void init(char* image_path) {
 
   // create initial population
   fprintf(stderr, "seeding initial population...");
-  population = s_malloc(sizeof(t_image*) * POP_SIZE);
+  //population = s_malloc(sizeof(t_image*) * POP_SIZE);
+  int fitness_sum = 0;
   for(int i = 0; i < POP_SIZE; i++) {
     population[i] = random_image(base_image->width, base_image->height);
+    fitness[i] = image_fitness(population[i]);
+    fitness_sum += fitness[i];
+  }
+  // normalise fitness
+  for(int i = 0; i < POP_SIZE; i++) {
+    fitness[i] /= fitness_sum;
   }
   fprintf(stderr, "done\n");
+}
+
+void flip_random_bit(int n) {
+  n ^= 1 << (rand() % 32);
+}
+
+void one_point_crossover(int p_a, int p_b, int* children) {
+  int c_point = rand() % 32;
+  children[0] = p_a;
+  children[1] = p_b;
+  // if bit is set in parent, set it in opposite child
+  for(int i = c_point; i < 32; i++) {
+    if(p_b & (1 << i))
+      children[0] |= 1 << i;
+    else
+      children[0] &= ~(1 << i);
+
+    if(p_a & (1 << i))
+      children[1] |= 1 << i;
+    else
+      children[1] &= ~(1 << i);
+  }
 }
 
 void display() {
@@ -59,9 +91,17 @@ void display() {
     qsort(population, POP_SIZE, sizeof(t_image*), image_fitness_cmp);
     // current best is start of sorted list
     best_image = population[0];
+    float accum_fitness;
+    float r = rand() / (float)RAND_MAX;
+    t_image* select;
     for(int i = 0; i < POP_SELECT; i++) {
-      fprintf(stderr, "img %d fitness %.3f\n", i, 
-        image_fitness(population[i]));
+      for(int j = 0; j < POP_SIZE; j++) {
+        accum_fitness += fitness[j];
+        if(accum_fitness >= r) {
+          select = population[j];
+          break;
+        }
+      }
     }
   }
 
@@ -74,8 +114,8 @@ void display() {
   glBegin(GL_POINTS);
   for(int x = 0; x < best_image->width; x++) {
     for(int y = 0; y < best_image->height; y++) {
-      glColor3f(best_image->pix[x][y].r, best_image->pix[x][y].g,
-                  best_image->pix[x][y].b);
+      glColor3f(best_image->pix[x][y].r/255.0, best_image->pix[x][y].g/255.0,
+                  best_image->pix[x][y].b/255.0);
       glVertex2f(x + 0.5f, y + 0.5f);
     }
   }
