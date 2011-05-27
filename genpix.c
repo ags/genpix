@@ -3,23 +3,24 @@
 
 //#define DEBUG
 #define WINDOW_TITLE       "genpix"
-#define INIT_POP_SIZE      200
-#define POP_SELECT_FACTOR  0.33
-#define CROSSOVER_RATE     0.75
-#define MUTATION_RATE      0.25
-#define MUT_MIN            -5
-#define MUT_MAX            5
+#define MAX_GENS           100000
+#define INIT_POP_SIZE      100
+#define POP_SELECT_FACTOR  0.05
+#define CROSSOVER_RATE     0.85
+#define MUTATION_RATE      0.05
+#define MUT_MIN            -55
+#define MUT_MAX            55
 #define N_CHILDREN         8
 #define N_PARENTS          2
 
 // globals
-t_image* base_image;
-t_image* best_image;
-t_image** population;
-t_image** new_pop;
+static t_image* base_image = NULL;
+static t_image* best_image = NULL;
+static t_image** population;
 static int population_size;
 static int pop_select;
-static double* fitness;
+//static double* fitness;
+static double last_best;
 static int done = 0;
 static int generations = 0;
 
@@ -67,24 +68,18 @@ void init(char* image_path) {
 
   population_size = INIT_POP_SIZE;
   pop_select = population_size * POP_SELECT_FACTOR;
-  fitness = s_malloc(sizeof(double) * population_size);
+  //fitness = s_malloc(sizeof(double) * population_size);
 
   // create initial population
   fprintf(stderr, "seeding initial population...");
-  population = calloc(sizeof(t_image*), population_size);
-  new_pop = calloc(sizeof(t_image*), population_size);
+  population = malloc(population_size * sizeof(t_image*));
 
-  double fitness_sum = 0;
   for(int i = 0; i < population_size; i++) {
     population[i] = random_image(base_image->width, base_image->height);
-    fitness[i] = image_fitness(population[i]);
-    fitness_sum += fitness[i];
   }
-  // normalise fitness
-  for(int i = 0; i < population_size; i++) {
-    fitness[i] /= fitness_sum;
-  }
-  best_image = population[0];
+  qsort(population, population_size, sizeof(t_image*), image_fitness_cmp);
+  best_image = image_copy(population[0]);
+  last_best = image_fitness(population[0]);
   fprintf(stderr, "done\n");
 }
 
@@ -98,24 +93,35 @@ void rgb_crossover(t_rgb* p_a, t_rgb* p_b, t_rgb* child) {
   child->b = (r) ? p_a->b : p_b->b;
 }
 
+/*void calculate_fitness() {
+  double fitness_sum = 0;
+  for(int i = 0; i < population_size; i++) {
+    fitness[i] = image_fitness(population[i]);
+    fitness_sum += fitness[i];
+  }
+  // normalise fitness
+  for(int i = 0; i < population_size; i++) {
+    fitness[i] /= fitness_sum;
+  }
+}*/
+
 void display() {
-  if(!done && image_match(best_image, base_image))
+  if(!done && image_match(best_image, base_image)) {
     done = 1;
-  if(!done) {// && generations < 10000) {
-    float r, accum_fitness = 0;
+  }
+  if(!done && generations < MAX_GENS) {
+    float r;
+    double accum_fitness = 0;
     fprintf(stderr, "evolving...");
-    // sort population by fitness
-    qsort(population, population_size, sizeof(t_image*), image_fitness_cmp);
     // current best is start of sorted list
-    best_image = population[0];
+    t_image** new_pop = malloc(population_size * sizeof(t_image*));
     // always add the best solution to survivors
     new_pop[0] = image_copy(best_image);
     // get more survivors using roulette wheel selection
     for(int i = 1; i < pop_select; i++) {
       r = rand() / (float)RAND_MAX;
-      // use old pop here
       for(int j = 0; j < population_size; j++) {
-        accum_fitness += fitness[j];
+        accum_fitness += image_fitness(population[j]);
         if(accum_fitness >= r) {
           new_pop[i] = image_copy(population[j]);
           break;
@@ -165,9 +171,8 @@ void display() {
           // crossover
           int p = 0;
           for(int c = 0; c < N_CHILDREN; c++) {
-            //rgb_crossover(&parents[0]->pix[x][y], &parents[1]->pix[x][y], 
-            //              &children[c]->pix[x][y]);
-            //printf("%d %d %d %d\n", c, c & (1 << 0), c & (1 << 1), c & (1 << 2));
+//            rgb_crossover(&parents[0]->pix[x][y], &parents[1]->pix[x][y], &children[c]->pix[x][y]);
+
             // use 3 bits of c to get the 8 combinations for crossover
             p = (c & (1 << 0)) ? 1 : 0;
             children[c]->pix[x][y].r = parents[p]->pix[x][y].r;
@@ -194,32 +199,19 @@ void display() {
     // deallocate last generation
     for(int i = 0; i < population_size; i++) {
       free_image(population[i]);
-      population[i] = NULL;
     }
-
-    // set up new population 
-    t_image** t_pop = population;
+    free(population);
     population = new_pop;
-    new_pop = t_pop;
-
-    // re-calculate fitness
-    double fitness_sum = 0;
-    for(int i = 0; i < population_size; i++) {
-      fitness[i] = image_fitness(population[i]);
-      fitness_sum += fitness[i];
-    }
-    // normalise fitness
-    for(int i = 0; i < population_size; i++) {
-      fitness[i] /= fitness_sum;
-    }
-
     qsort(population, population_size, sizeof(t_image*), image_fitness_cmp);
     // current best is start of sorted list
-    best_image = population[0];
+    double current_fit = image_fitness(population[0]);
+    if(current_fit < last_best) {
+      best_image = image_copy(population[0]);
+      last_best = current_fit;
+    }
     generations++;
-    fprintf(stderr, "done (gen %d)\n", generations);
+    fprintf(stderr, "done (gen %d) %f\n", generations, current_fit);
   }
-
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
   glMatrixMode(GL_PROJECTION);
@@ -227,6 +219,7 @@ void display() {
   glOrtho(0, base_image->width, base_image->height, 0, 0, 1);
   glMatrixMode(GL_MODELVIEW);
   glBegin(GL_POINTS);
+  fprintf(stderr, "drawing...");
   for(int x = 0; x < best_image->width; x++) {
     for(int y = 0; y < best_image->height; y++) {
       glColor3f(best_image->pix[x][y].r/255.0, best_image->pix[x][y].g/255.0,
@@ -235,6 +228,7 @@ void display() {
     }
   }
   glEnd();
+  fprintf(stderr, "done\n");
 
   glutSwapBuffers();
 }
@@ -247,15 +241,18 @@ int main(int argc, char* argv[]) {
   glutInit(&argc, argv);
   glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
 
+  //glutInitWindowSize(128, 119);
+  //glutInitWindowSize(100, 100);
   glutInitWindowSize(58, 54);
-  //glutInitWindowSize(10, 10);
   glutCreateWindow(WINDOW_TITLE);
   glutDisplayFunc(display);
   glutIdleFunc(idle);
   glDisable(GL_DEPTH_TEST);
 
-  init("me.jpg");
+  //init("bunny-rrr.png");
   //init("ten.png");
+  init("me.jpg");
+  //init(argv[1]);
 
   glutMainLoop();
 }
