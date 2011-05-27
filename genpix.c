@@ -7,9 +7,9 @@
 #define INIT_POP_SIZE      100
 #define POP_SELECT_FACTOR  0.05
 #define CROSSOVER_RATE     0.85
-#define MUTATION_RATE      0.05
-#define MUT_MIN            -55
-#define MUT_MAX            55
+#define MUTATION_RATE      0.01
+#define MUT_MIN            -75
+#define MUT_MAX            75
 #define N_CHILDREN         8
 #define N_PARENTS          2
 
@@ -210,7 +210,7 @@ void display() {
       last_best = current_fit;
     }
     generations++;
-    fprintf(stderr, "done (gen %d) %f\n", generations, current_fit);
+    fprintf(stderr, "done | gen %d | f %f\n", generations, current_fit);
   }
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -219,7 +219,6 @@ void display() {
   glOrtho(0, base_image->width, base_image->height, 0, 0, 1);
   glMatrixMode(GL_MODELVIEW);
   glBegin(GL_POINTS);
-  fprintf(stderr, "drawing...");
   for(int x = 0; x < best_image->width; x++) {
     for(int y = 0; y < best_image->height; y++) {
       glColor3f(best_image->pix[x][y].r/255.0, best_image->pix[x][y].g/255.0,
@@ -228,7 +227,6 @@ void display() {
     }
   }
   glEnd();
-  fprintf(stderr, "done\n");
 
   glutSwapBuffers();
 }
