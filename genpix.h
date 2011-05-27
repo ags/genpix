@@ -5,9 +5,9 @@
 #include "image.h"
 #include "util.h"
 
-int image_fitness(t_image* img);
+double image_fitness(t_image* img);
 
-void flip_random_bit(int n);
+void flip_random_bit(int* n);
 
 void one_point_crossover(int p_a, int p_b, int* children);
 

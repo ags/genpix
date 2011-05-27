@@ -8,9 +8,9 @@ t_image* random_image(int width, int height) {
   for(int x = 0; x < width; x++) {
     img->pix[x] = s_malloc(sizeof(t_rgb) * height);
     for(int y = 0; y < height; y++) {
-      img->pix[x][y].r = rand() / (float)RAND_MAX;
-      img->pix[x][y].g = rand() / (float)RAND_MAX;
-      img->pix[x][y].b = rand() / (float)RAND_MAX;
+      img->pix[x][y].r = 0;//rand() % 256;
+      img->pix[x][y].g = 0;//rand() % 256;
+      img->pix[x][y].b = 0;//rand() % 256;
     }
   }
   return img;
@@ -33,9 +33,9 @@ t_image* image_from_tex(int image_tex) {
     img->pix[x] = s_malloc(sizeof(t_rgb) * img->height);
     for(int y = 0; y < img->height; y++) {
       int offset = ((img->width * y) + x) * 4;
-      img->pix[x][y].r = buffer[offset];
-      img->pix[x][y].g = buffer[offset+1];
-      img->pix[x][y].b = buffer[offset+2];
+      img->pix[x][img->height-1 - y].r = buffer[offset];
+      img->pix[x][img->height-1 - y].g = buffer[offset+1];
+      img->pix[x][img->height-1 - y].b = buffer[offset+2];
       /*
       printf("pixel at (%d,%d) (%d,%d,%d) (%.3f,%.3f,%.3ff)\n", x, y, 
         (int)img->pix[x][y].r*255, (int)img->pix[x][y].g*255, 
@@ -47,6 +47,36 @@ t_image* image_from_tex(int image_tex) {
   free(buffer);
   glBindTexture(GL_TEXTURE_2D, 0);
   return img;
+}
+
+t_image* image_copy(t_image* img) {
+  t_image* n_img = s_malloc(sizeof(t_image));
+  n_img->width = img->width; 
+  n_img->height = img->height;
+  n_img->pix = s_malloc(sizeof(t_rgb*) * n_img->width);
+  for(int x = 0; x < n_img->width; x++) {
+    n_img->pix[x] = s_malloc(sizeof(t_rgb) * n_img->height);
+    for(int y = 0; y < n_img->height; y++) {
+      n_img->pix[x][y].r = img->pix[x][y].r;
+      n_img->pix[x][y].g = img->pix[x][y].g;
+      n_img->pix[x][y].b = img->pix[x][y].b;
+    }
+  }
+  return n_img;
+}
+
+int image_match(t_image* a, t_image* b) {
+  for(int x = 0; x < a->width; x++) {
+    for(int y = 0; y < a->height; y++) {
+      if(a->pix[x][y].r != b->pix[x][y].r)
+        return 0;
+      if(a->pix[x][y].g != b->pix[x][y].g)
+        return 0;
+      if(a->pix[x][y].b != b->pix[x][y].b)
+        return 0;
+    }
+  } 
+  return 1;
 }
 
 void free_image(t_image* img) {

@@ -15,6 +15,8 @@ typedef struct {
 
 t_image* image_from_tex(int image_tex);
 t_image* random_image(int width, int height);
+t_image* image_copy(t_image* img);
+int image_match(t_image* a, t_image* b);
 void free_image(t_image* img);
 
 #endif
