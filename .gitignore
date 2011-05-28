@@ -3,3 +3,4 @@ genpix
 *.o
 *.png
 *.jpg
+*.out

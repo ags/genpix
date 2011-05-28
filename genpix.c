@@ -17,10 +17,9 @@
 static t_image* base_image = NULL;
 static t_image* best_image = NULL;
 static t_image** population;
+static double last_best;
 static int population_size;
 static int pop_select;
-//static double* fitness;
-static double last_best;
 static int done = 0;
 static int generations = 0;
 
@@ -68,11 +67,10 @@ void init(char* image_path) {
 
   population_size = INIT_POP_SIZE;
   pop_select = population_size * POP_SELECT_FACTOR;
-  //fitness = s_malloc(sizeof(double) * population_size);
-
+  
   // create initial population
   fprintf(stderr, "seeding initial population...");
-  population = malloc(population_size * sizeof(t_image*));
+  population = s_malloc(population_size * sizeof(t_image*));
 
   for(int i = 0; i < population_size; i++) {
     population[i] = random_image(base_image->width, base_image->height);
@@ -93,18 +91,6 @@ void rgb_crossover(t_rgb* p_a, t_rgb* p_b, t_rgb* child) {
   child->b = (r) ? p_a->b : p_b->b;
 }
 
-/*void calculate_fitness() {
-  double fitness_sum = 0;
-  for(int i = 0; i < population_size; i++) {
-    fitness[i] = image_fitness(population[i]);
-    fitness_sum += fitness[i];
-  }
-  // normalise fitness
-  for(int i = 0; i < population_size; i++) {
-    fitness[i] /= fitness_sum;
-  }
-}*/
-
 void display() {
   if(!done && image_match(best_image, base_image)) {
     done = 1;
@@ -114,7 +100,7 @@ void display() {
     double accum_fitness = 0;
     fprintf(stderr, "evolving...");
     // current best is start of sorted list
-    t_image** new_pop = malloc(population_size * sizeof(t_image*));
+    t_image** new_pop = s_malloc(population_size * sizeof(t_image*));
     // always add the best solution to survivors
     new_pop[0] = image_copy(best_image);
     // get more survivors using roulette wheel selection
@@ -129,6 +115,7 @@ void display() {
       }
       accum_fitness = 0;
     }
+
     // get a normalised fitness distribution for the survivors
     double survivor_fit[pop_select];
     double survivor_sum_fit = 0;
@@ -157,8 +144,9 @@ void display() {
         accum_fitness = 0;
       }
 
-      t_image* children[N_CHILDREN] = {0};
       int p = 0;
+      t_image* children[N_CHILDREN] = {0};
+      // seed children with parent data
       for(int c = 0; c < N_CHILDREN; c++) {
         children[c] = image_copy(parents[p]);
         /* can get away with this instead of mod as parents is 2
@@ -169,10 +157,7 @@ void display() {
       for(int x = 0; x < base_image->width; x++) {
         for(int y = 0; y < base_image->height; y++) {
           // crossover
-          int p = 0;
           for(int c = 0; c < N_CHILDREN; c++) {
-//            rgb_crossover(&parents[0]->pix[x][y], &parents[1]->pix[x][y], &children[c]->pix[x][y]);
-
             // use 3 bits of c to get the 8 combinations for crossover
             p = (c & (1 << 0)) ? 1 : 0;
             children[c]->pix[x][y].r = parents[p]->pix[x][y].r;
@@ -190,10 +175,23 @@ void display() {
           }
         }
       }
-      // add to new pop
-      for(int c = 0; c < N_CHILDREN && i < population_size; c++) {
-        new_pop[i++] = children[c];
+
+      // add to new population
+      int c = 0;
+      for(; c < N_CHILDREN && i < population_size; c++) {
+        r = rand() / (float)RAND_MAX;
+        // this child is 'born'
+        if(r <= CROSSOVER_RATE) {
+          new_pop[i++] = image_copy(children[c]);
+          free_image(children[c]);
+        // you are dead to me!
+        } else {
+          free_image(children[c]);
+        }
       }
+      // cleanup any children left over when population is filled
+      for(; c < N_CHILDREN; c++)
+        free_image(children[c]);
     }
 
     // deallocate last generation
@@ -201,17 +199,22 @@ void display() {
       free_image(population[i]);
     }
     free(population);
+    
+    // set new population as current
     population = new_pop;
+    // determine new best member and compare to old best
     qsort(population, population_size, sizeof(t_image*), image_fitness_cmp);
-    // current best is start of sorted list
     double current_fit = image_fitness(population[0]);
     if(current_fit < last_best) {
+      free_image(best_image);
       best_image = image_copy(population[0]);
       last_best = current_fit;
     }
     generations++;
-    fprintf(stderr, "done | gen %d | f %f\n", generations, current_fit);
+    fprintf(stderr, "done | gen %d | f %.1f\n", generations, current_fit);
   }
+
+  // draw the best image
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
   glMatrixMode(GL_PROJECTION);
@@ -227,8 +230,14 @@ void display() {
     }
   }
   glEnd();
-
+  
   glutSwapBuffers();
+  /*
+  for(int i = 0; i < population_size; i++) {
+    free_image(population[i]);
+  }
+  exit(0);
+  */
 }
 
 void idle() {
@@ -241,15 +250,16 @@ int main(int argc, char* argv[]) {
 
   //glutInitWindowSize(128, 119);
   //glutInitWindowSize(100, 100);
-  glutInitWindowSize(58, 54);
+  //glutInitWindowSize(58, 54);
   glutCreateWindow(WINDOW_TITLE);
   glutDisplayFunc(display);
   glutIdleFunc(idle);
   glDisable(GL_DEPTH_TEST);
 
-  //init("bunny-rrr.png");
+  init("bunny-rrr.png");
+
   //init("ten.png");
-  init("me.jpg");
+  //init("me.jpg");
   //init(argv[1]);
 
   glutMainLoop();

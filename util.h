@@ -18,6 +18,10 @@
   #include <GL/glut.h>
 #endif
 
+static const float F_RAND_MAX = (float)RAND_MAX;
+
 void* s_malloc(unsigned int bytes);
+
+float rand_float();
 
 #endif

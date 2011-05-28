@@ -8,3 +8,7 @@ void* s_malloc(unsigned int bytes) {
   }
   return ptr;
 }
+
+float rand_float() {
+  return rand() / F_RAND_MAX;
+}

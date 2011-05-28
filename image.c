@@ -36,12 +36,6 @@ t_image* image_from_tex(int image_tex) {
       img->pix[x][img->height-1 - y].r = buffer[offset];
       img->pix[x][img->height-1 - y].g = buffer[offset+1];
       img->pix[x][img->height-1 - y].b = buffer[offset+2];
-      /*
-      printf("pixel at (%d,%d) (%d,%d,%d) (%.3f,%.3f,%.3ff)\n", x, y, 
-        (int)img->pix[x][y].r*255, (int)img->pix[x][y].g*255, 
-        (int)img->pix[x][y].b*255, img->pix[x][y].r, img->pix[x][y].g, 
-        img->pix[x][y].b);
-      */
     }
   }
   free(buffer);
