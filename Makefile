@@ -6,8 +6,8 @@
 CC = gcc
 LD = gcc
 
-CFLAGS = `pkg-config gdk-pixbuf-2.0 --cflags` -ansi -Wall -pedantic -std=c99 -c -pg -O2 -g
-LFLAGS = -lGL -lGLU -lglut `pkg-config gdk-pixbuf-2.0 --libs` -lm -pg
+CFLAGS = `pkg-config gdk-pixbuf-2.0 --cflags` -ansi -Wall -pedantic -std=c99 -c -O2
+LFLAGS = -lGL -lGLU -lglut `pkg-config gdk-pixbuf-2.0 --libs` -lm
 
 TEXTURE_PLATFORM_SOURCES = texture_gdk.c
 
