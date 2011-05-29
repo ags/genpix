@@ -4,13 +4,13 @@
 //#define DEBUG
 #define WINDOW_TITLE       "genpix"
 #define MAX_GENS           100000
-#define INIT_POP_SIZE      500
-#define POP_SELECT_FACTOR  0.05
+#define INIT_POP_SIZE      60
+#define POP_SELECT_FACTOR  0.20
 #define CROSSOVER_RATE     0.95
 #define MUTATION_RATE      0.01
-#define MUT_MIN            -50
-#define MUT_MAX            50
-#define N_CHILDREN         8
+#define MUT_MIN            -15
+#define MUT_MAX            15
+#define N_CHILDREN         2
 #define N_PARENTS          2
 
 // globals
@@ -22,6 +22,7 @@ static int population_size;
 static int pop_select;
 static int done = 0;
 static int generations = 0;
+static int paused = 0;
 
 double image_fitness(t_image* img) {
   double fitness = 0;
@@ -38,15 +39,12 @@ double image_fitness(t_image* img) {
 }
 
 int image_fitness_cmp(const void* a, const void* b) {
-  t_image* i_a = *(t_image**)a;
-  t_image* i_b = *(t_image**)b;
-  double f_a = image_fitness(i_a);
-  double f_b = image_fitness(i_b); 
+  double f_a = image_fitness(*(t_image**)a);
+  double f_b = image_fitness(*(t_image**)b); 
   return (f_a > f_b) - (f_a < f_b);
 }
 
 void mutate_rgb(t_rgb* rgb) {
-  /*
   int r;
   r = rand() % (MUT_MAX - MUT_MIN + 1) + MUT_MIN;
   rgb->r = fmin(255, fmax(0, rgb->r + r));
@@ -54,10 +52,44 @@ void mutate_rgb(t_rgb* rgb) {
   rgb->g = fmin(255, fmax(0, rgb->g + r));
   r = rand() % (MUT_MAX - MUT_MIN + 1) + MUT_MIN;
   rgb->b = fmin(255, fmax(0, rgb->b + r));
-  */
+  /*
   rgb->r = rand() % 256;
   rgb->g = rand() % 256;
   rgb->b = rand() % 256;
+  */
+}
+
+void average_rgb(int x, int y, t_image** parents, t_image* child) {
+  int r_sum = 0, g_sum = 0, b_sum = 0;
+  for(int i = 0; i < N_PARENTS; i++) {
+    r_sum += parents[i]->pix[x][y].r;
+    g_sum += parents[i]->pix[x][y].g;
+    b_sum += parents[i]->pix[x][y].b;
+  }
+  r_sum /= N_PARENTS;
+  g_sum /= N_PARENTS;
+  b_sum /= N_PARENTS;
+  child->pix[x][y].r = r_sum;
+  child->pix[x][y].g = g_sum;
+  child->pix[x][y].b = b_sum;
+}
+
+void cross_rgb(int x, int y, t_image** parents, t_image* child) {
+  int r_p, r_m, delta;
+  r_p = rand() % 2;
+  r_m = (0.9 - 0.1) * ((float)rand() / RAND_MAX) + 0.1;
+  delta = parents[0]->pix[x][y].r - parents[1]->pix[x][y].r;
+  child->pix[x][y].r = parents[r_p]->pix[x][y].r + (delta * r_m);
+  
+  r_p = rand() % 2;
+  r_m = (0.9 - 0.1) * ((float)rand() / RAND_MAX) + 0.1;
+  delta = parents[0]->pix[x][y].g - parents[1]->pix[x][y].g;
+  child->pix[x][y].g = parents[r_p]->pix[x][y].g + (delta * r_m);
+
+  r_p = rand() % 2;
+  r_m = (0.9 - 0.1) * ((float)rand() / RAND_MAX) + 0.1;
+  delta = parents[0]->pix[x][y].b - parents[1]->pix[x][y].b;
+  child->pix[x][y].b = parents[r_p]->pix[x][y].b + (delta * r_m);
 }
 
 void init(char* image_path) {
@@ -91,7 +123,7 @@ void display() {
   if(!done && image_match(best_image, base_image)) {
     done = 1;
   }
-  if(!done && generations < MAX_GENS) {
+  if(!paused && !done && generations < MAX_GENS) {
     float r;
     double accum_fitness = 0;
     fprintf(stderr, "evolving...");
@@ -154,6 +186,7 @@ void display() {
         for(int y = 0; y < base_image->height; y++) {
           // crossover
           for(int c = 0; c < N_CHILDREN; c++) {
+            /*
             // use 3 bits of c to get the 8 combinations for crossover
             p = (c & (1 << 0)) ? 1 : 0;
             children[c]->pix[x][y].r = parents[p]->pix[x][y].r;
@@ -161,12 +194,13 @@ void display() {
             children[c]->pix[x][y].g = parents[p]->pix[x][y].g;
             p = (c & (1 << 2)) ? 1 : 0;
             children[c]->pix[x][y].b = parents[p]->pix[x][y].b;
+            */
+            average_rgb(x, y, parents, children[c]);
           }
 
           // mutation
           for(int c = 0; c < N_CHILDREN; c++) {
-            r = rand_float();
-            if(r <= MUTATION_RATE)
+            if(rand_float() <= MUTATION_RATE)
               mutate_rgb(&children[c]->pix[x][y]);
           }
         }
@@ -228,22 +262,40 @@ void idle() {
   glutPostRedisplay();
 }
 
+void keyboardDown(unsigned char key, int x, int y) {
+  switch(key) {
+    case 'q':
+      for(int i = 0; i < population_size; i++)
+        free_image(population[i]);
+      free(population);
+      free_image(best_image);
+      exit(0);
+      break;
+    case 'p':
+      paused = !paused;
+      break;
+    default:
+      break;
+  }
+}
+
 int main(int argc, char* argv[]) {
   glutInit(&argc, argv);
   glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
 
+  glDisable(GL_DEPTH_TEST);
   //glutInitWindowSize(128, 119);
   glutInitWindowSize(100, 100);
   //glutInitWindowSize(58, 54);
   glutCreateWindow(WINDOW_TITLE);
   glutDisplayFunc(display);
   glutIdleFunc(idle);
-  glDisable(GL_DEPTH_TEST);
+  glutKeyboardFunc(keyboardDown);
 
   //init("bunny.png");
+  //init("me.jpg");
   init("tux.jpg");
   //init("ten.png");
-  //init("me.jpg");
   //init(argv[1]);
 
   glutMainLoop();
