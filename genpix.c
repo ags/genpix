@@ -13,7 +13,6 @@
 #define N_CHILDREN         2
 #define N_PARENTS          2
 
-// globals
 static t_image* base_image = NULL;
 static t_image* best_image = NULL;
 static t_image** population;
@@ -177,8 +176,8 @@ void display() {
       // seed children with parent data
       for(int c = 0; c < N_CHILDREN; c++) {
         children[c] = image_copy(parents[p]);
-        /* can get away with this instead of mod as parents is 2
-          if we were to use more, have to change it */
+        /* NOTE: can get away with this instead of mod as parents is 2,
+           but if we were to use more have to change it */
         p = !p;
       }
 
@@ -283,20 +282,21 @@ int main(int argc, char* argv[]) {
   glutInit(&argc, argv);
   glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE | GLUT_DEPTH);
 
-  glDisable(GL_DEPTH_TEST);
-  //glutInitWindowSize(128, 119);
-  glutInitWindowSize(100, 100);
-  //glutInitWindowSize(58, 54);
+  //glutInitWindowSize(100, 100);
+  /* TODO
+   should be able to do init here, then use best->width etc as
+   window size, but for some reason this doesn't work so read
+   from cli for now
+  */
+  glutInitWindowSize(atoi(argv[2]), atoi(argv[3]));
   glutCreateWindow(WINDOW_TITLE);
   glutDisplayFunc(display);
   glutIdleFunc(idle);
   glutKeyboardFunc(keyboardDown);
+  glDisable(GL_DEPTH_TEST);
 
-  //init("bunny.png");
-  //init("me.jpg");
-  init("tux.jpg");
-  //init("ten.png");
-  //init(argv[1]);
+  //init("tux.jpg");
+  init(argv[1]);
 
   glutMainLoop();
 }
